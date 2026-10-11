@@ -1,0 +1,65 @@
+<EditForm Model="Model" OnValidSubmit="HandleSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary class="text-danger" />
+
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label">Company</label>
+            <InputText class="form-control" @bind-Value="Model.Company" />
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Position</label>
+            <InputText class="form-control" @bind-Value="Model.Position" />
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Location</label>
+            <InputText class="form-control" @bind-Value="Model.Location" />
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Status</label>
+            <InputSelect class="form-select" @bind-Value="Model.Status">
+                @foreach (var s in Enum.GetValues<ApplicationStatus>())
+                {
+                    <option value="@s">@s</option>
+                }
+            </InputSelect>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Applied on</label>
+            <InputDate class="form-control" @bind-Value="Model.AppliedOn" />
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Follow up on</label>
+            <InputDate class="form-control" @bind-Value="Model.FollowUpOn" />
+        </div>
+        <div class="col-12">
+            <label class="form-label">Job URL</label>
+            <InputText class="form-control" @bind-Value="Model.JobUrl" />
+        </div>
+        <div class="col-12">
+            <label class="form-label">Notes</label>
+            <InputTextArea class="form-control" rows="4" @bind-Value="Model.Notes" />
+        </div>
+    </div>
+
+    <div class="mt-4 d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="button" class="btn btn-outline-secondary" @onclick="OnCancel">Cancel</button>
+        @if (ShowDelete)
+        {
+            <button type="button" class="btn btn-outline-danger ms-auto" @onclick="OnDelete">Delete</button>
+        }
+    </div>
+</EditForm>
+
+@code {
+    [Parameter, EditorRequired]
+    public JobApplication Model { get; set; } = default!;
+
+    [Parameter] public EventCallback OnSave { get; set; }
+    [Parameter] public EventCallback OnCancel { get; set; }
+    [Parameter] public EventCallback OnDelete { get; set; }
+    [Parameter] public bool ShowDelete { get; set; }
+
+    private Task HandleSubmit() => OnSave.InvokeAsync();
+}

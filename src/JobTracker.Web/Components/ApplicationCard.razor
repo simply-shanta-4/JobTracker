@@ -1,0 +1,44 @@
+<div class="card app-card mb-2">
+    <div class="card-body p-2">
+        <div class="fw-semibold">@Application.Company</div>
+        <div class="small">@Application.Position</div>
+        <div class="small text-muted">@Application.Location</div>
+
+        @if (Application.FollowUpOn is { } followUp)
+        {
+            <div class="small text-warning-emphasis">Follow up: @followUp.ToString("dd MMM")</div>
+        }
+
+        <select class="form-select form-select-sm mt-2"
+                value="@Application.Status"
+                @onchange="HandleChange">
+            @foreach (var s in Enum.GetValues<ApplicationStatus>())
+            {
+                <option value="@s">@s</option>
+            }
+        </select>
+
+        <div class="d-flex justify-content-between align-items-center mt-2">
+            <a class="small" href="applications/@Application.Id">Edit</a>
+            <button type="button" class="btn btn-link btn-sm text-danger p-0"
+                    @onclick="OnDelete">Delete</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public JobApplication Application { get; set; } = default!;
+
+    [Parameter]
+    public EventCallback<ApplicationStatus> OnMove { get; set; }
+
+    [Parameter]
+    public EventCallback OnDelete { get; set; }
+
+    private async Task HandleChange(ChangeEventArgs e)
+    {
+        if (Enum.TryParse<ApplicationStatus>(e.Value?.ToString(), out var status))
+            await OnMove.InvokeAsync(status);
+    }
+}

@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/JobTracker.Api/JobTracker.Api.csproj" />
+    <Project Path="src/JobTracker.Web/JobTracker.Web.csproj" />
+  </Folder>
+</Solution>

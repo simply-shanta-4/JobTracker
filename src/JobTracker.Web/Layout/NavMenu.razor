@@ -1,0 +1,47 @@
+﻿@inject AuthService Auth
+@inject NavigationManager Nav
+
+<nav class="navbar navbar-expand-md navbar-dark app-nav px-3">
+    <a class="navbar-brand fw-semibold" href="">JobTracker</a>
+
+    <button class="navbar-toggler" type="button" @onclick="ToggleMenu">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="@NavClass navbar-collapse" @onclick="CloseMenu">
+        <AuthorizeView>
+            <Authorized>
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="" Match="NavLinkMatch.All">Dashboard</NavLink>
+                    </li>
+                    <li class="nav-item">
+                        <NavLink class="nav-link" href="board">Board</NavLink>
+                    </li>
+                </ul>
+                <span class="navbar-text small me-3">@context.User.Identity?.Name</span>
+                <button class="btn btn-outline-light btn-sm" @onclick="LogoutAsync">Logout</button>
+            </Authorized>
+            <NotAuthorized>
+                <ul class="navbar-nav me-auto"></ul>
+                <NavLink class="btn btn-outline-light btn-sm me-2" href="login">Login</NavLink>
+                <NavLink class="btn btn-light btn-sm" href="register">Register</NavLink>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+</nav>
+
+@code {
+    private bool showMenu;
+
+    private string NavClass => showMenu ? "" : "collapse";
+
+    private void ToggleMenu() => showMenu = !showMenu;
+    private void CloseMenu() => showMenu = false;
+
+    private async Task LogoutAsync()
+    {
+        await Auth.LogoutAsync();
+        Nav.NavigateTo("login");
+    }
+}

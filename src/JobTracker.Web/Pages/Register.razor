@@ -1,0 +1,70 @@
+@page "/register"
+@inject AuthService Auth
+@inject NavigationManager Nav
+
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card login-card">
+            <div class="card-body p-4">
+                <h1 class="h3 mb-1">Create account</h1>
+                <p class="text-muted mb-4">Start tracking your applications.</p>
+
+                <EditForm Model="model" OnValidSubmit="SubmitAsync">
+                    <DataAnnotationsValidator />
+
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <InputText class="form-control" type="email" @bind-Value="model.Email" />
+                        <ValidationMessage For="() => model.Email" class="text-danger small" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <InputText class="form-control" type="password" @bind-Value="model.Password" />
+                        <ValidationMessage For="() => model.Password" class="text-danger small" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Confirm password</label>
+                        <InputText class="form-control" type="password" @bind-Value="model.ConfirmPassword" />
+                        <ValidationMessage For="() => model.ConfirmPassword" class="text-danger small" />
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(error))
+                    {
+                        <div class="alert alert-danger py-2 small">@error</div>
+                    }
+
+                    <button type="submit" class="btn btn-primary w-100" disabled="@busy">
+                        @(busy ? "Creating account..." : "Register")
+                    </button>
+                </EditForm>
+
+                <p class="small text-center mt-3 mb-0">
+                    Already registered? <a href="login">Sign in</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private readonly RegisterModel model = new();
+    private bool busy;
+    private string? error;
+
+    private async Task SubmitAsync()
+    {
+        busy = true;
+        error = null;
+
+        var result = await Auth.RegisterAsync(model);
+
+        busy = false;
+
+        if (result.Success)
+            Nav.NavigateTo("");
+        else
+            error = result.Error;
+    }
+}

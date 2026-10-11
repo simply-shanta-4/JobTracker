@@ -1,0 +1,105 @@
+@page "/"
+@attribute [Authorize]
+@inject IApplicationService Service
+@inject IApplicationService Service
+
+<h1 class="mb-3">Dashboard</h1>
+
+@if (apps == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <StatsCard Title="Total" Value="@apps.Count.ToString()" />
+        </div>
+        <div class="col-6 col-md-3">
+            <StatsCard Title="Submitted" Value="@Submitted.ToString()" Subtitle="Excludes wishlist" />
+        </div>
+        <div class="col-6 col-md-3">
+            <StatsCard Title="Interviews" Value="@Count(ApplicationStatus.Interview).ToString()" />
+        </div>
+        <div class="col-6 col-md-3">
+            <StatsCard Title="Response rate" Value="@ResponseRate" Subtitle="Interview or offer" />
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-6">
+            <h5>By status</h5>
+            @foreach (var status in Enum.GetValues<ApplicationStatus>())
+            {
+                var count = Count(status);
+                var percent = apps.Count == 0 ? 0 : count * 100 / apps.Count;
+
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between small">
+                        <span>@status</span>
+                        <span>@count</span>
+                    </div>
+                    <div class="progress" style="height: 8px">
+                        <div class="progress-bar" style="width: @(percent)%"></div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="col-md-6">
+            <h5>Upcoming follow-ups</h5>
+            @if (followUps.Count == 0)
+            {
+                <p class="text-muted">Nothing scheduled.</p>
+            }
+            else
+            {
+                <ul class="list-group">
+                    @foreach (var a in followUps)
+                    {
+                        var overdue = a.FollowUpOn!.Value.Date < DateTime.Today;
+
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <a href="applications/@a.Id">@a.Company: @a.Position</a>
+                            <span class="badge @(overdue ? "bg-danger" : "bg-secondary")">
+                                @a.FollowUpOn.Value.ToString("dd MMM")
+                            </span>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private List<JobApplication>? apps;
+    private List<JobApplication> followUps = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        apps = await Service.GetAllAsync();
+
+        followUps = apps
+            .Where(a => a.FollowUpOn is not null
+                        && (a.Status == ApplicationStatus.Applied || a.Status == ApplicationStatus.Interview))
+            .OrderBy(a => a.FollowUpOn)
+            .ToList();
+    }
+
+    private int Count(ApplicationStatus status) =>
+        apps!.Count(a => a.Status == status);
+
+    private int Submitted =>
+        apps!.Count(a => a.Status != ApplicationStatus.Wishlist);
+
+    private string ResponseRate
+    {
+        get
+        {
+            if (Submitted == 0) return "–";
+            var responded = Count(ApplicationStatus.Interview) + Count(ApplicationStatus.Offer);
+            return $"{responded * 100 / Submitted}%";
+        }
+    }
+}

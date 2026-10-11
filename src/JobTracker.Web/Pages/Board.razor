@@ -1,0 +1,53 @@
+@page "/board"
+@attribute [Authorize]
+@inject IApplicationService Service
+@inject IJSRuntime JS
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="mb-0">Board</h1>
+    <a class="btn btn-primary" href="applications/new">+ Add application</a>
+</div>
+
+@if (apps == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div class="board">
+        @foreach (var status in Enum.GetValues<ApplicationStatus>())
+        {
+            <StatusColumn Status="status"
+                          Applications="apps.Where(a => a.Status == status).ToList()"
+                          OnMove="MoveAsync"
+                          OnDelete="DeleteAsync" />
+        }
+    </div>
+}
+
+@code {
+    private List<JobApplication>? apps;
+
+    protected override async Task OnInitializedAsync() =>
+        apps = await Service.GetAllAsync();
+
+    private async Task MoveAsync(JobApplication app, ApplicationStatus newStatus)
+    {
+        app.Status = newStatus;
+
+        if (newStatus == ApplicationStatus.Applied && app.AppliedOn is null)
+            app.AppliedOn = DateTime.Today;
+
+        await Service.UpdateAsync(app);
+    }
+
+    private async Task DeleteAsync(JobApplication app)
+    {
+        var confirmed = await JS.InvokeAsync<bool>(
+            "confirm", $"Delete {app.Company} - {app.Position}?");
+        if (!confirmed) return;
+
+        await Service.DeleteAsync(app.Id);
+        apps!.Remove(app);
+    }
+}
