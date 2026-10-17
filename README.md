@@ -6,7 +6,7 @@
 [![Blazor WebAssembly](https://img.shields.io/badge/Blazor-WebAssembly-512BD4?logo=blazor&logoColor=white)](https://dotnet.microsoft.com/apps/aspnet/web-apps/blazor)
 [![ASP.NET Core](https://img.shields.io/badge/ASP.NET%20Core-Web%20API-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/apps/aspnet)
 [![EF Core](https://img.shields.io/badge/EF%20Core-10.0-512BD4?logo=nuget&logoColor=white)](https://learn.microsoft.com/ef/core/)
-[![SQLite](https://img.shields.io/badge/Database-SQLite-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
+[![Azure SQL](https://img.shields.io/badge/Database-Azure%20SQL%20%2F%20SQL%20Server-0078D4?logo=microsoftsqlserver&logoColor=white)](https://azure.microsoft.com/en-us/products/azure-sql/database/)
 [![JWT Auth](https://img.shields.io/badge/Auth-JWT%20Bearer-black?logo=jsonwebtokens&logoColor=white)](https://jwt.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -22,7 +22,7 @@
 - [Getting Started](#-getting-started)
   - [Prerequisites](#prerequisites)
   - [Step 1: Clone the Repository](#step-1-clone-the-repository)
-  - [Step 2: Configure JWT User Secrets](#step-2-configure-jwt-user-secrets)
+  - [Step 2: Configure Secrets & Connection Strings](#step-2-configure-secrets--connection-strings)
   - [Step 3: Database Migration](#step-3-database-migration)
   - [Step 4: Run the Services](#step-4-run-the-services)
 - [API Reference](#-api-reference)
@@ -36,7 +36,7 @@
 
 Searching for a job often involves juggling dozens of applications, deadlines, recruiter messages, and follow-ups across different platforms. **JobTracker** provides a centralized, streamlined dashboard that helps job seekers stay organized and proactive throughout their job hunt.
 
-Built as a single-page application (SPA) with **Blazor WebAssembly** backed by an **ASP.NET Core RESTful API**, JobTracker offers a responsive, desktop-class experience with real-time feedback, overdue follow-up warnings, and metrics to monitor application conversion rates.
+Built as a single-page application (SPA) with **Blazor WebAssembly** backed by an **ASP.NET Core RESTful API** and **Azure SQL / SQL Server**, JobTracker offers a responsive, desktop-class experience with real-time feedback, overdue follow-up warnings, and metrics to monitor application conversion rates.
 
 ---
 
@@ -49,13 +49,14 @@ Built as a single-page application (SPA) with **Blazor WebAssembly** backed by a
 | 🔍 **Live Search & Dynamic Filtering** | Instant client-side search across company name, role/position, location, and notes, combined with status dropdown filtering and dynamic result counts. |
 | ⏰ **Overdue Follow-up Alerts** | Never miss a crucial touchpoint. Applications with passed follow-up dates are prominently highlighted with visual badges. |
 | 🔐 **Secure Multi-User Auth** | Complete user registration and login powered by **ASP.NET Core Identity** and **JWT Bearer tokens** with complete per-user data segregation. |
-| 🛡️ **Resilient User Experience** | Loading states with animated spinners, empty state illustrations, user-friendly error banners with one-click **Retry**, and deletion confirmation dialogs. |
+| 🛡️ **Cloud-Resilient Database** | Backed by **Azure SQL / SQL Server** using EF Core with automatic transient retry policies (`EnableRetryOnFailure`) for robust cloud operation. |
+| ⚡ **Resilient User Experience** | Loading states with animated spinners, empty state illustrations, user-friendly error banners with one-click **Retry**, and deletion confirmation dialogs. |
 
 ---
 
 ## 🏗️ System Architecture
 
-JobTracker adheres to a clean separation between client-side presentation and backend API services:
+JobTracker adheres to a clean separation between client-side presentation, backend API services, and cloud storage:
 
 ```mermaid
 graph TD
@@ -75,8 +76,8 @@ graph TD
         AppCtrl["ApplicationsController<br/>(/api/applications)"]
         JWTMiddleware["JWT Authentication Middleware<br/>(Validates 'sub' claim)"]
         Identity["ASP.NET Core Identity Core"]
-        EF["Entity Framework Core 10"]
-        DB[(SQLite Database<br/>jobtracker.db)]
+        EF["Entity Framework Core 10<br/>(EnableRetryOnFailure)"]
+        DB[(Azure SQL / SQL Server Database)]
 
         Handler -->|"HTTPS / REST API"| JWTMiddleware
         Handler -->|"Auth Endpoints"| AuthCtrl
@@ -84,7 +85,7 @@ graph TD
         AuthCtrl --> Identity
         Identity --> EF
         AppCtrl -->|"Scoped by UserId"| EF
-        EF --> DB
+        EF -->|"Resilient Connection"| DB
     end
 ```
 
@@ -102,12 +103,13 @@ graph TD
 - **Framework:** [ASP.NET Core Web API (.NET 10)](https://dotnet.microsoft.com/apps/aspnet)
 - **Authentication:** `Microsoft.AspNetCore.Authentication.JwtBearer`
 - **Identity Membership:** `Microsoft.AspNetCore.Identity.EntityFrameworkCore`
-- **ORM:** Entity Framework Core 10 (`Microsoft.EntityFrameworkCore.Sqlite`)
+- **ORM:** Entity Framework Core 10 (`Microsoft.EntityFrameworkCore.SqlServer` 10.0.13)
 - **API Documentation:** Built-in OpenAPI specification support (`Microsoft.AspNetCore.OpenApi`)
 
 ### Database & Storage
-- **Local Database:** SQLite 3 (`jobtracker.db`)
-- **Migration Engine:** EF Core Migrations
+- **Database:** Microsoft Azure SQL Database / Microsoft SQL Server
+- **Resilience:** Built-in EF Core retry policies via `EnableRetryOnFailure()` for transient connection recovery
+- **Migration Engine:** EF Core Migrations (SQL Server provider)
 
 ---
 
@@ -117,6 +119,7 @@ graph TD
 JobTracker/
 ├── JobTracker.slnx                   # Solution configuration
 ├── README.md                         # Project documentation
+├── LICENSE                           # MIT License
 └── src/
     ├── JobTracker.Api/               # ASP.NET Core REST API
     │   ├── Controllers/
@@ -126,15 +129,15 @@ JobTracker/
     │   │   └── AppDbContext.cs          # EF Core DbContext with Identity
     │   ├── Dtos/
     │   │   └── AuthDtos.cs              # Register, Login & Token DTOs
-    │   ├── Migrations/                  # EF Core database migrations
+    │   ├── Migrations/                  # EF Core database migrations (SQL Server)
     │   ├── Models/
     │   │   ├── ApplicationStatus.cs     # Status enum (Wishlist -> Rejected)
     │   │   ├── ApplicationUser.cs       # Custom IdentityUser entity
-    │   │   └── JobApplication.cs        # Application entity model
+    │   │   └── JobApplication.cs        # Application entity model with validation
     │   ├── Services/
     │   │   └── TokenService.cs          # JWT token generation
     │   ├── appsettings.json             # API runtime configuration
-    │   └── Program.cs                   # API dependency injection & middleware
+    │   └── Program.cs                   # API dependency injection, SQL Server & middleware
     │
     └── JobTracker.Web/               # Blazor WebAssembly Client
         ├── Components/
@@ -171,6 +174,7 @@ JobTracker/
 Ensure you have the following installed on your development workstation:
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) or later
 - [Git](https://git-scm.com/)
+- An accessible **Azure SQL Database** or local **SQL Server** instance
 - EF Core CLI tool (install globally if not already installed):
   ```bash
   dotnet tool install --global dotnet-ef
@@ -187,33 +191,40 @@ cd JobTracker
 
 ---
 
-### Step 2: Configure JWT User Secrets
+### Step 2: Configure Secrets & Connection Strings
 
-To keep security keys out of source control, store your signing key in .NET User Secrets:
+Store sensitive configuration keys safely outside source control using .NET User Secrets:
 
 ```bash
-# Initialize and set JWT secret key for the API project
+# Initialize user secrets for the API project
 dotnet user-secrets init --project src/JobTracker.Api
+
+# 1. Set JWT signing key (minimum 32 characters)
 dotnet user-secrets set "Jwt:Key" "YourSuperSecretKeyMustBeAtLeast32CharactersLong!" --project src/JobTracker.Api
+
+# 2. Set SQL Server / Azure SQL connection string
+# For Azure SQL:
+dotnet user-secrets set "ConnectionStrings:Default" "Server=tcp:<your-server>.database.windows.net,1433;Initial Catalog=jobtracker;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;Authentication=Active Directory Default;" --project src/JobTracker.Api
+
+# Or for local SQL Server / LocalDB during development:
+# dotnet user-secrets set "ConnectionStrings:Default" "Server=(localdb)\\mssqllocaldb;Database=JobTrackerDb;Trusted_Connection=True;MultipleActiveResultSets=true" --project src/JobTracker.Api
 ```
 
 ---
 
 ### Step 3: Database Migration
 
-Initialize the SQLite database schema using Entity Framework Core:
+Apply EF Core migrations to create the schema and tables in your SQL database:
 
 ```bash
 dotnet ef database update --project src/JobTracker.Api
 ```
 
-> **Note:** This creates `jobtracker.db` in the `src/JobTracker.Api` directory.
-
 ---
 
 ### Step 4: Run the Services
 
-You can run both projects simultaneously in separate terminals:
+Run both projects simultaneously in separate terminal windows:
 
 #### Terminal 1 — Start the API Server:
 ```bash
@@ -294,15 +305,17 @@ Content-Type: application/json
 ## 🔒 Security & Architecture Highlights
 
 - **Strict Multi-Tenant Isolation:** The backend reads the authenticated user's ID directly from the validated JWT token (`sub` claim) inside `ApplicationsController`. Every query is scoped by `UserId`, preventing users from reading, editing, or deleting another user's records.
+- **Cloud Resiliency with Automatic Retries:** The database context is configured with `sql => sql.EnableRetryOnFailure()`, enabling resilient handling of transient connection drops common in cloud environments like Azure SQL.
 - **Client-Side Authorization Bridge:** Uses `AuthenticationStateProvider` with `CascadingAuthenticationState` to protect client routes (`[Authorize]`) and conditionally render UI components.
 - **Interface Segregation for Easy Testing:** The Blazor frontend interacts solely with the `IApplicationService` interface. Swapping between an in-memory mock service and `ApiApplicationService` requires changing just a single line in `Program.cs`.
-- **Zero Hardcoded Secrets:** JWT symmetric keys are kept out of source code and loaded from .NET User Secrets in development and environment variables in production.
+- **Zero Hardcoded Secrets:** JWT keys and database connection strings are kept strictly out of source code and loaded from .NET User Secrets in development and Azure App Settings / environment variables in production.
 
 ---
 
 ## 🗺️ Roadmap
 
-- [ ] **Cloud Deployment:** Deploy to Microsoft Azure (Azure Static Web Apps for Blazor, Azure App Service & Azure SQL for backend).
+- [x] **Cloud Database:** Migrated to Azure SQL / SQL Server EF Core provider with transient fault retry policies.
+- [ ] **Cloud Deployment:** Deploy to Microsoft Azure (Azure Static Web Apps for Blazor, Azure App Service for backend API).
 - [ ] **Automated Reminders:** Background notifications for upcoming follow-up dates via Azure Functions or SendGrid.
 - [ ] **CI/CD Pipeline:** Automated build, test, and release workflows with GitHub Actions.
 - [ ] **Automated Testing:** Comprehensive unit and integration test coverage with xUnit, FluentAssertions, and bUnit.
