@@ -2,23 +2,25 @@
 
 
 
-A full-stack job application tracker. Log in, add the roles you're applying for, and move them across a board as they progress from wishlist to offer. Built with ASP.NET Core and Blazor WebAssembly.
+A full-stack job application tracker built with \*\*ASP.NET Core\*\* and \*\*Blazor WebAssembly\*\*. Add the roles you're applying for and move them across a board from wishlist to offer.
 
 
 
-> \*\*Live demo:\*\* coming soon (Azure deployment in progress)
+\*\*Live demo:\*\* coming soon (Azure deployment in progress)
 
 
 
-\## Screenshots
+<!-- Add screenshots once docs/screenshots/board.png and dashboard.png exist, then delete this line and the closing line below.
 
 
 
-| Board | Dashboard |
+!\[Board](docs/screenshots/board.png)
 
-|-------|-----------|
+!\[Dashboard](docs/screenshots/dashboard.png)
 
-| !\[Board](docs/screenshots/board.png) | !\[Dashboard](docs/screenshots/dashboard.png) |
+
+
+\-->
 
 
 
@@ -26,23 +28,21 @@ A full-stack job application tracker. Log in, add the roles you're applying for,
 
 
 
-\- \*\*Authentication:\*\* register and log in with JWT tokens, with a "Remember me" option
+\- Register and log in with JWT authentication, with a "Remember me" option
 
-\- \*\*Private data:\*\* every user only sees and edits their own applications
+\- Private data: every user only sees their own applications
 
-\- \*\*Kanban board:\*\* Wishlist, Applied, Interview, Offer and Rejected columns
+\- Kanban board with Wishlist, Applied, Interview, Offer and Rejected columns
 
-\- \*\*Full CRUD:\*\* add, edit, move and delete applications, with a confirmation before deleting
+\- Add, edit, move and delete applications, with a confirmation before deleting
 
-\- \*\*Search and filter:\*\* search by company, role, location or notes, and filter by status
+\- Search by company, role, location or notes, and filter by status
 
-\- \*\*Follow-up tracking:\*\* overdue follow-ups are highlighted in red
+\- Overdue follow-ups highlighted in red
 
-\- \*\*Dashboard:\*\* totals, response rate, status breakdown and upcoming follow-ups
+\- Dashboard with totals, response rate, status breakdown and upcoming follow-ups
 
-\- \*\*Friendly UX:\*\* loading spinners, empty states, and error messages with a Retry button
-
-\- \*\*Protected pages:\*\* logged-out visitors are redirected to the login page, and expired sessions log out automatically
+\- Loading spinners, empty states, and error messages with a Retry button
 
 
 
@@ -50,63 +50,63 @@ A full-stack job application tracker. Log in, add the roles you're applying for,
 
 
 
-| Layer | Technology |
+\- \*\*Front end:\*\* Blazor WebAssembly, Bootstrap
 
-|-------|------------|
+\- \*\*Back end:\*\* ASP.NET Core Web API (.NET 10)
 
-| Front end | Blazor WebAssembly, Bootstrap |
+\- \*\*Data:\*\* Entity Framework Core with SQLite (Azure SQL planned)
 
-| Back end | ASP.NET Core Web API (.NET 10) |
-
-| Data | Entity Framework Core, SQLite (local development) |
-
-| Auth | ASP.NET Core Identity, JWT bearer tokens |
+\- \*\*Auth:\*\* ASP.NET Core Identity and JWT bearer tokens
 
 
 
-\## Project structure
+\## Run locally
+
+
+
+You need the \[.NET 10 SDK](https://dotnet.microsoft.com/download) and the EF Core tool (`dotnet tool install --global dotnet-ef`).
 
 
 
 ```
 
-JobTracker/
+git clone https://github.com/simply-shanta-4/JobTracker.git
 
-├── src/
+cd JobTracker
 
-│   ├── JobTracker.Api/          ASP.NET Core Web API
 
-│   │   ├── Controllers/         AuthController, ApplicationsController
 
-│   │   ├── Data/                AppDbContext (EF Core + Identity)
+dotnet user-secrets init --project src/JobTracker.Api
 
-│   │   ├── Dtos/                Login and register request/response types
+dotnet user-secrets set "Jwt:Key" "replace-with-your-own-long-random-string" --project src/JobTracker.Api
 
-│   │   ├── Models/              JobApplication, ApplicationUser, ApplicationStatus
 
-│   │   ├── Services/            TokenService (creates JWTs)
 
-│   │   └── Migrations/          EF Core migrations
+dotnet ef database update --project src/JobTracker.Api
 
-│   └── JobTracker.Web/          Blazor WebAssembly front end
-
-│       ├── Components/          ApplicationCard, StatusColumn, ApplicationForm, StatsCard, ...
-
-│       ├── Layout/              MainLayout, NavMenu
-
-│       ├── Models/              Models shared with the UI
-
-│       ├── Pages/               Dashboard, Board, ApplicationDetail, Login, Register
-
-│       └── Services/            API client, auth state provider, token handler
-
-└── README.md
+dotnet run --project src/JobTracker.Api
 
 ```
 
 
 
-\## API endpoints
+In a second terminal:
+
+
+
+```
+
+dotnet run --project src/JobTracker.Web
+
+```
+
+
+
+Open the URL the web app prints and register an account. The API listens on `http://localhost:5192`. If yours differs, update `apiUrl` in `src/JobTracker.Web/Program.cs`.
+
+
+
+\## API
 
 
 
@@ -114,9 +114,9 @@ JobTracker/
 
 |--------|----------|-------------|------|
 
-| POST | `/api/auth/register` | Create an account and return a token | No |
+| POST | `/api/auth/register` | Create an account | No |
 
-| POST | `/api/auth/login` | Log in and return a token | No |
+| POST | `/api/auth/login` | Log in | No |
 
 | GET | `/api/applications` | List your applications | Yes |
 
@@ -130,101 +130,15 @@ JobTracker/
 
 
 
-Protected endpoints expect an `Authorization: Bearer <token>` header.
+\## Design notes
 
 
 
-\## Getting started
+\- Pages use an `IApplicationService` interface. It ran on an in-memory mock first, then switched to the real API by changing one line.
 
+\- Every application stores the owner's `UserId` from the JWT, and every query filters on it.
 
-
-\### Prerequisites
-
-
-
-\- \[.NET 10 SDK](https://dotnet.microsoft.com/download)
-
-\- The EF Core tool: `dotnet tool install --global dotnet-ef`
-
-
-
-\### Run locally
-
-
-
-1\. Clone the repository:
-
-```
-
-&#x20;  git clone https://github.com/simply-shanta-4/JobTracker.git
-
-&#x20;  cd JobTracker
-
-```
-
-
-
-2\. Set the JWT signing key as a user secret (use your own random string of 32+ characters):
-
-```
-
-&#x20;  dotnet user-secrets init --project src/JobTracker.Api
-
-&#x20;  dotnet user-secrets set "Jwt:Key" "replace-with-your-own-long-random-string" --project src/JobTracker.Api
-
-```
-
-
-
-3\. Create the database:
-
-```
-
-&#x20;  dotnet ef database update --project src/JobTracker.Api
-
-```
-
-
-
-4\. Start the API (listens on `http://localhost:5192`):
-
-```
-
-&#x20;  dotnet run --project src/JobTracker.Api
-
-```
-
-
-
-5\. In a second terminal, start the web app:
-
-```
-
-&#x20;  dotnet run --project src/JobTracker.Web
-
-```
-
-
-
-6\. Open the URL printed by the web app, register an account, and add your first application.
-
-
-
-If the API runs on a different port, update `apiUrl` in `src/JobTracker.Web/Program.cs`.
-
-
-
-\## Design decisions
-
-
-
-\- \*\*Service interface for the front end:\*\* pages talk to `IApplicationService`. The first version ran on an in-memory mock, then switched to the real API by changing one line in `Program.cs`.
-
-\- \*\*Per-user data:\*\* every application stores a `UserId` taken from the JWT, and every query filters on it, so one user can never read or change another user's data.
-
-\- \*\*Secrets stay out of Git:\*\* the JWT key lives in user secrets locally and will be an app setting in Azure.
-
-\- \*\*Enums as text:\*\* statuses are stored and sent as readable strings (`"Interview"`) rather than numbers.
+\- The JWT signing key lives in user secrets, never in Git.
 
 
 
@@ -232,23 +146,11 @@ If the API runs on a different port, update `apiUrl` in `src/JobTracker.Web/Prog
 
 
 
-\- \[ ] Deploy to Azure: Azure SQL Database, App Service (API) and Static Web Apps (front end)
+\- \[ ] Deploy to Azure (Azure SQL, App Service, Static Web Apps)
 
 \- \[ ] CI/CD with GitHub Actions
 
-\- \[ ] Azure Functions: email reminders for follow-ups
-
-\- \[ ] Azure Blob Storage: resume uploads
-
-\- \[ ] Application Insights monitoring
+\- \[ ] Azure Functions for follow-up reminder emails
 
 \- \[ ] Unit and integration tests (xUnit)
-
-
-
-\## Notes
-
-
-
-CORS is currently open to any origin for local development. It will be restricted to the deployed front-end URL when the app goes live.
 
