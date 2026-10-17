@@ -1,12 +1,25 @@
-<div class="card app-card mb-2">
+<div class="card app-card mb-2 @(Overdue ? "overdue-card" : "")">
     <div class="card-body p-2">
         <div class="fw-semibold">@Application.Company</div>
         <div class="small">@Application.Position</div>
         <div class="small text-muted">@Application.Location</div>
 
+        @if (!string.IsNullOrWhiteSpace(Application.Notes))
+        {
+            <div class="small text-muted fst-italic notes-preview mt-1" title="@Application.Notes">
+                @Application.Notes
+            </div>
+        }
+
         @if (Application.FollowUpOn is { } followUp)
         {
-            <div class="small text-warning-emphasis">Follow up: @followUp.ToString("dd MMM")</div>
+            <div class="small mt-1 @(Overdue ? "text-danger fw-semibold" : "text-warning-emphasis")">
+                Follow up: @followUp.ToString("dd MMM")
+                @if (Overdue)
+                {
+                    <span>(overdue)</span>
+                }
+            </div>
         }
 
         <select class="form-select form-select-sm mt-2"
@@ -35,6 +48,12 @@
 
     [Parameter]
     public EventCallback OnDelete { get; set; }
+
+    // Overdue only counts while you're still waiting to hear back
+    private bool Overdue =>
+        Application.FollowUpOn is { } due
+        && due.Date < DateTime.Today
+        && Application.Status is ApplicationStatus.Applied or ApplicationStatus.Interview;
 
     private async Task HandleChange(ChangeEventArgs e)
     {

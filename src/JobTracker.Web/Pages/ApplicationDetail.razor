@@ -1,0 +1,116 @@
+@page "/applications/new"
+@page "/applications/{Id:int}"
+@attribute [Authorize]
+@inject IApplicationService Service
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>Application | JobTracker</PageTitle>
+
+<h1 class="mb-3">@(Id is null ? "Add application" : "Edit application")</h1>
+
+@if (error != null)
+{
+    <div class="alert alert-danger">@error</div>
+}
+
+@if (model != null)
+{
+    <ApplicationForm Model="model"
+                     ShowDelete="@(Id is not null)"
+                     OnSave="SaveAsync"
+                     OnCancel="GoBack"
+                     OnDelete="DeleteAsync" />
+}
+else if (error == null)
+{
+    <LoadingSpinner />
+}
+
+@code {
+    [Parameter] public int? Id { get; set; }
+
+    private JobApplication? model;
+    private string? error;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        error = null;
+
+        if (Id is null)
+        {
+            model = new JobApplication();
+            return;
+        }
+
+        try
+        {
+            var existing = await Service.GetByIdAsync(Id.Value);
+            if (existing is null)
+            {
+                Nav.NavigateTo("board");
+                return;
+            }
+
+            // Edit a copy so Cancel doesn't change the stored item
+            model = new JobApplication
+            {
+                Id = existing.Id,
+                Company = existing.Company,
+                Position = existing.Position,
+                Location = existing.Location,
+                JobUrl = existing.JobUrl,
+                Notes = existing.Notes,
+                Status = existing.Status,
+                AppliedOn = existing.AppliedOn,
+                FollowUpOn = existing.FollowUpOn
+            };
+        }
+        catch (HttpRequestException)
+        {
+            error = "Could not load this application. Check that the API is running.";
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        error = null;
+
+        if (model!.Status == ApplicationStatus.Applied && model.AppliedOn is null)
+            model.AppliedOn = DateTime.Today;
+
+        try
+        {
+            if (Id is null)
+                await Service.AddAsync(model);
+            else
+                await Service.UpdateAsync(model);
+
+            GoBack();
+        }
+        catch (HttpRequestException)
+        {
+            error = "Could not save the application. Check your connection and try again.";
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        var confirmed = await JS.InvokeAsync<bool>(
+            "confirm", $"Delete {model!.Company} - {model.Position}?");
+        if (!confirmed) return;
+
+        error = null;
+        try
+        {
+            await Service.DeleteAsync(model.Id);
+            GoBack();
+        }
+        catch (HttpRequestException)
+        {
+            error = "Could not delete the application. Please try again.";
+        }
+    }
+
+    private void GoBack() => Nav.NavigateTo("board");
+}

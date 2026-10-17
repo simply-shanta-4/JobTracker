@@ -3,42 +3,144 @@
 @inject IApplicationService Service
 @inject IJSRuntime JS
 
+<PageTitle>Board | JobTracker</PageTitle>
+
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="mb-0">Board</h1>
     <a class="btn btn-primary" href="applications/new">+ Add application</a>
 </div>
 
-@if (apps == null)
+@if (error != null)
 {
-    <p>Loading...</p>
+    <div class="alert alert-danger d-flex justify-content-between align-items-center">
+        <span>@error</span>
+        @if (apps == null)
+        {
+            <button class="btn btn-sm btn-outline-danger" @onclick="LoadAsync">Retry</button>
+        }
+    </div>
 }
-else
+
+@if (apps != null)
 {
+    var shown = apps
+        .Where(Matches)
+        .Where(a => statusFilter == "" || a.Status.ToString() == statusFilter)
+        .ToList();
+
+    <div class="row g-2 mb-3">
+        <div class="col-md-6">
+            <input class="form-control"
+                   placeholder="Search company, role, location or notes..."
+                   @bind="search" @bind:event="oninput" />
+        </div>
+        <div class="col-6 col-md-3">
+            <select class="form-select" @bind="statusFilter">
+                <option value="">All statuses</option>
+                @foreach (var s in Enum.GetValues<ApplicationStatus>())
+                {
+                    <option value="@s">@s</option>
+                }
+            </select>
+        </div>
+        <div class="col-6 col-md-3">
+            @if (FiltersActive)
+            {
+                <button class="btn btn-outline-secondary w-100" @onclick="ClearFilters">Clear filters</button>
+            }
+        </div>
+    </div>
+
+    @if (FiltersActive)
+    {
+        <p class="small text-muted">Showing @shown.Count of @apps.Count applications</p>
+    }
+
     <div class="board">
-        @foreach (var status in Enum.GetValues<ApplicationStatus>())
+        @foreach (var status in Enum.GetValues<ApplicationStatus>()
+                      .Where(s => statusFilter == "" || s.ToString() == statusFilter))
         {
             <StatusColumn Status="status"
-                          Applications="apps.Where(a => a.Status == status).ToList()"
+                          Applications="Sorted(shown.Where(a => a.Status == status))"
                           OnMove="MoveAsync"
                           OnDelete="DeleteAsync" />
         }
     </div>
 }
+else if (error == null)
+{
+    <LoadingSpinner Message="Loading your board..." />
+}
 
 @code {
     private List<JobApplication>? apps;
+    private string? error;
+    private string search = "";
+    private string statusFilter = "";
 
-    protected override async Task OnInitializedAsync() =>
-        apps = await Service.GetAllAsync();
+    private bool FiltersActive =>
+        !string.IsNullOrWhiteSpace(search) || statusFilter != "";
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        error = null;
+        try
+        {
+            apps = await Service.GetAllAsync();
+        }
+        catch (HttpRequestException)
+        {
+            error = "Could not load your applications. Check that the API is running.";
+        }
+    }
+
+    private void ClearFilters()
+    {
+        search = "";
+        statusFilter = "";
+    }
+
+    // Search matches company, position, location and notes (ignores upper/lower case)
+    private bool Matches(JobApplication a)
+    {
+        if (string.IsNullOrWhiteSpace(search)) return true;
+
+        var q = search.Trim();
+        return Contains(a.Company, q) || Contains(a.Position, q)
+            || Contains(a.Location, q) || Contains(a.Notes, q);
+    }
+
+    private static bool Contains(string? text, string q) =>
+        text?.Contains(q, StringComparison.OrdinalIgnoreCase) == true;
+
+    // Newest applications first; cards with no applied date (wishlist) go by newest added
+    private static List<JobApplication> Sorted(IEnumerable<JobApplication> items) =>
+        items.OrderByDescending(a => a.AppliedOn ?? DateTime.MinValue)
+             .ThenByDescending(a => a.Id)
+             .ToList();
 
     private async Task MoveAsync(JobApplication app, ApplicationStatus newStatus)
     {
-        app.Status = newStatus;
+        var oldStatus = app.Status;
+        var oldAppliedOn = app.AppliedOn;
 
+        error = null;
+        app.Status = newStatus;
         if (newStatus == ApplicationStatus.Applied && app.AppliedOn is null)
             app.AppliedOn = DateTime.Today;
 
-        await Service.UpdateAsync(app);
+        try
+        {
+            await Service.UpdateAsync(app);
+        }
+        catch (HttpRequestException)
+        {
+            app.Status = oldStatus;
+            app.AppliedOn = oldAppliedOn;
+            error = "Could not move the application. Please try again.";
+        }
     }
 
     private async Task DeleteAsync(JobApplication app)
@@ -47,7 +149,15 @@ else
             "confirm", $"Delete {app.Company} - {app.Position}?");
         if (!confirmed) return;
 
-        await Service.DeleteAsync(app.Id);
-        apps!.Remove(app);
+        error = null;
+        try
+        {
+            await Service.DeleteAsync(app.Id);
+            apps!.Remove(app);
+        }
+        catch (HttpRequestException)
+        {
+            error = "Could not delete the application. Please try again.";
+        }
     }
 }
