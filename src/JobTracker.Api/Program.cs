@@ -18,9 +18,21 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         sql => sql.EnableRetryOnFailure()));
 
 builder.Services.AddCors(options =>
-    options.AddPolicy("Dev", policy =>
-        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
-
+    options.AddPolicy("Web", policy =>
+    {
+        if (builder.Environment.IsDevelopment())
+        {
+            // Local testing: any origin is fine
+            policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+        }
+        else
+        {
+            // Live: only the websites listed in the Cors:AllowedOrigins setting
+            var origins = builder.Configuration
+                .GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+            policy.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod();
+        }
+    }));
 builder.Services.AddIdentityCore<ApplicationUser>(o =>
 {
     o.Password.RequiredLength = 6;
@@ -59,7 +71,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors("Dev");
+app.UseCors("Web");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
