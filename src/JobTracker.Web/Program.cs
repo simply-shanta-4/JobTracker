@@ -8,7 +8,8 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-const string apiUrl = "http://localhost:5192/";
+var apiUrl = builder.Configuration["ApiUrl"]
+    ?? throw new InvalidOperationException("ApiUrl is not configured.");
 
 // Authentication state
 builder.Services.AddAuthorizationCore();
